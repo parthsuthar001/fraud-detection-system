@@ -304,22 +304,7 @@ Tested on a MacBook Pro M2, local Docker:
 | Load Testing | Locust |
 | Testing | pytest, pytest-asyncio |
 
----
 
-## 🎓 College Project Notes
-
-This project demonstrates:
-- **Distributed Systems**: Kafka for async event streaming, consumer groups
-- **System Design**: Microservices, separation of concerns
-- **Data Engineering**: Streaming data pipelines with stateful processing  
-- **Backend Engineering**: Async Python, connection pooling, health checks
-- **DevOps**: Dockerized multi-service stack, CI/CD pipelines
-
----
-
-*Built as a college project demonstrating production-grade distributed systems design.*
-
----
 
 ## 🤖 ML Scoring Layer (XGBoost)
 
