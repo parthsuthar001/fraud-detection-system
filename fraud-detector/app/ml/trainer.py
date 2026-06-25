@@ -11,7 +11,6 @@ Run once to create the model artifact:
 
 Output: models/fraud_model.json  (XGBoost native format, ~50 KB)
 """
-import os
 import json
 import logging
 import numpy as np

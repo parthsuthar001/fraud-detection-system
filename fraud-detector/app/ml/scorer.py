@@ -13,7 +13,6 @@ This means the system is never "down" even before the model is trained.
 """
 import logging
 from pathlib import Path
-from typing import Optional
 import numpy as np
 
 logger = logging.getLogger(__name__)
