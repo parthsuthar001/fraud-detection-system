@@ -138,7 +138,7 @@ def test_critical_score_multiple_rules(base_transaction, clean_ctx):
     clean_ctx.user_country_history = ["India", "USA"]  # Russia is new
 
     result = evaluate(base_transaction, clean_ctx)
-    assert result.score == 100  # Capped at 100
+    assert result.score == 90  # 40 + 30 + 20
     assert score_to_level(result.score) == "CRITICAL"
     assert score_to_action(result.score) == "BLOCK"
     assert len(result.triggered_rules) > 1
