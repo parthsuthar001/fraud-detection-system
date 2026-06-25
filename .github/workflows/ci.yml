@@ -47,9 +47,11 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio httpx
 
-      - name: Run tests
-        working-directory: api-gateway
-        run: pytest tests/ -v
+     - name: Run unit tests
+  working-directory: fraud-detector
+  env:
+    PYTHONPATH: .
+  run: pytest tests/ -v --cov=app --cov-report=term-missing
 
   lint:
     name: Lint — Ruff
