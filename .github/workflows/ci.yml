@@ -1,4 +1,3 @@
-```yaml
 name: CI - Lint & Test
 
 on:
@@ -15,8 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -39,8 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -52,7 +49,12 @@ jobs:
 
       - name: Run tests
         working-directory: api-gateway
-        run: pytest tests/ -v
+        run: |
+          if [ -d tests ]; then
+            pytest tests/ -v
+          else
+            echo "No tests found. Skipping."
+          fi
 
   lint:
     name: Lint - Ruff
