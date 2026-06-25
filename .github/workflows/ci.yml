@@ -1,6 +1,15 @@
+```yaml
+name: CI - Lint & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
 jobs:
   test-fraud-detector:
-    name: Fraud Detector — Unit Tests
+    name: Fraud Detector - Unit Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +33,7 @@ jobs:
         run: pytest tests/ -v --cov=app --cov-report=term-missing
 
   test-api-gateway:
-    name: API Gateway — Unit Tests
+    name: API Gateway - Unit Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -44,3 +53,23 @@ jobs:
       - name: Run tests
         working-directory: api-gateway
         run: pytest tests/ -v
+
+  lint:
+    name: Lint - Ruff
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Lint api-gateway
+        run: ruff check api-gateway/
+
+      - name: Lint fraud-detector
+        run: ruff check fraud-detector/
