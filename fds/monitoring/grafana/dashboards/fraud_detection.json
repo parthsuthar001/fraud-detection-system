@@ -1,0 +1,186 @@
+{
+  "id": null,
+  "title": "Fraud Detection — Live Dashboard",
+  "description": "Real-time fraud scoring metrics: throughput, risk distribution, rule triggers, latency",
+  "tags": ["fraud", "payments", "real-time"],
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Transactions / Second",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "targets": [{
+        "expr": "rate(fraud_transactions_total[1m])",
+        "legendFormat": "TPS"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "thresholds": {
+          "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 50 },
+            { "color": "red", "value": 200 }
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Block Rate (%)",
+      "type": "stat",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "targets": [{
+        "expr": "rate(fraud_transactions_total{status='BLOCK'}[5m]) / rate(fraud_transactions_total[5m]) * 100",
+        "legendFormat": "Block %"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "unit": "percent",
+        "thresholds": {
+          "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 5 },
+            { "color": "red", "value": 15 }
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "P95 Processing Latency (ms)",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "targets": [{
+        "expr": "histogram_quantile(0.95, rate(fraud_processing_latency_seconds_bucket[5m])) * 1000",
+        "legendFormat": "P95 ms"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "unit": "ms",
+        "thresholds": {
+          "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 50 },
+            { "color": "red", "value": 100 }
+          ]
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "ML Scoring Active",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "targets": [{
+        "expr": "rate(fraud_scoring_mode_total{mode='hybrid'}[5m]) / rate(fraud_scoring_mode_total[5m]) * 100",
+        "legendFormat": "ML %"
+      }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "unit": "percent"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Transaction Decisions Over Time",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(fraud_transactions_total{status='APPROVE'}[1m])",
+          "legendFormat": "Approved"
+        },
+        {
+          "expr": "rate(fraud_transactions_total{status='BLOCK'}[1m])",
+          "legendFormat": "Blocked"
+        },
+        {
+          "expr": "rate(fraud_transactions_total{status='REVIEW'}[1m])",
+          "legendFormat": "Review"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Blocked" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Approved" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "title": "Risk Score Distribution",
+      "type": "histogram",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "rate(fraud_risk_score_bucket[5m])",
+        "legendFormat": "Risk Score"
+      }]
+    },
+    {
+      "id": 7,
+      "title": "Top 10 Triggered Rules",
+      "type": "bargauge",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "topk(10, rate(fraud_rules_triggered_total[10m]))",
+        "legendFormat": "{{ rule_name }}"
+      }],
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      }
+    },
+    {
+      "id": 8,
+      "title": "ML Fraud Probability Distribution",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(fraud_ml_probability_bucket[5m]))",
+          "legendFormat": "P50 ML prob"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(fraud_ml_probability_bucket[5m]))",
+          "legendFormat": "P95 ML prob"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Processing Latency Percentiles",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 20, "w": 24, "h": 6 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(fraud_processing_latency_seconds_bucket[5m])) * 1000",
+          "legendFormat": "P50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(fraud_processing_latency_seconds_bucket[5m])) * 1000",
+          "legendFormat": "P95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(fraud_processing_latency_seconds_bucket[5m])) * 1000",
+          "legendFormat": "P99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ms" }
+      }
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 1
+}
