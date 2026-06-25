@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from typing import Optional
 from aiokafka import AIOKafkaProducer

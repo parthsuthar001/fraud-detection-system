@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field, validator
 from typing import Optional
 from datetime import datetime
 from enum import Enum
-import uuid
 
 
 class TransactionStatus(str, Enum):
