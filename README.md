@@ -1,395 +1,288 @@
 # 🛡️ Real-Time Fraud Detection System
 
-> A production-grade distributed system that scores transactions for fraud risk in **< 50ms** using Kafka, Redis, FastAPI, and PostgreSQL.
-
-[![CI](https://github.com/parthsuthar001/fraud-detection-system/actions/workflows/ci.yml/badge.svg)](https://github.com/parthsuthar001/fraud-detection-system/actions)
+![CI](https://github.com/parthsuthar001/fraud-detection-system/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green)
-![Kafka](https://img.shields.io/badge/Kafka-7.5-orange)
+![Kafka](https://img.shields.io/badge/Kafka-7.5-black)
 ![Redis](https://img.shields.io/badge/Redis-7.2-red)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
+![XGBoost](https://img.shields.io/badge/XGBoost-2.0-success)
+
+A distributed fraud detection platform built with **FastAPI, Kafka, Redis, PostgreSQL, and XGBoost**.
+
+Transactions are accepted asynchronously, enriched with cached state, evaluated using deterministic fraud rules and an optional machine learning model, then stored and published for downstream consumers.
 
 ---
 
-## 🏗️ Architecture
+# Features
 
-```
+* Event-driven architecture using Kafka
+* FastAPI API Gateway
+* Redis sliding-window velocity detection
+* Rule-based fraud engine
+* Optional XGBoost fraud scoring
+* PostgreSQL persistence
+* WebSocket fraud alerts
+* Prometheus metrics
+* Grafana dashboards
+* Docker Compose deployment
+* GitHub Actions CI
+
+---
+
+# Architecture
+
+```text
 Transaction Client
        │
-       ▼ POST /transactions (202 Accepted)
-┌─────────────────┐
-│   API Gateway   │  FastAPI — validates & publishes to Kafka
-│   (port 8000)   │
-└────────┬────────┘
-         │  Kafka: transactions-raw
-         ▼
-┌─────────────────────────────────────────┐
-│         Fraud Detector (×2 workers)     │
-│                                          │
-│  ┌─────────────┐    ┌─────────────────┐ │
-│  │ Rule Engine │◄──►│  Redis (Sliding │ │
-│  │  9 rules    │    │  Window Cache)  │ │
-│  └──────┬──────┘    └─────────────────┘ │
-│         │                               │
-│         ▼                               │
-│   Risk Score (0–100) → APPROVE/BLOCK   │
-└────────┬────────────────────────────────┘
-         │  Kafka: fraud-events
-    ┌────┴────────────────────┐
-    │                         │
-    ▼                         ▼
-┌──────────┐          ┌──────────────────┐
-│PostgreSQL│          │  Alert Service   │
-│ (storage)│          │  WebSocket push  │
-└──────────┘          └──────────────────┘
+       ▼
+ API Gateway (FastAPI)
+       │
+       ▼
+Kafka Topic (transactions-raw)
+       │
+       ▼
+Fraud Detector Workers
+ ├── Rule Engine
+ ├── XGBoost Model
+ ├── Redis
+ └── PostgreSQL
+       │
+       ▼
+Kafka Topic (fraud-events)
+       │
+ ┌─────┴─────────────┐
+ ▼                   ▼
+Alert Service   Analytics Service
 ```
 
 ---
 
-## ⚡ Engineering Patterns
+# Technology Stack
 
-### 1. Redis Sliding Window (Velocity Checks)
-Detects card-testing attacks — fraudsters making rapid micro-transactions to verify stolen cards.
-
-```python
-# Uses Redis Sorted Sets for O(log N) sliding window
-ZADD velocity:1001:60s  {tx_id: timestamp}   # Add
-ZREMRANGEBYSCORE ...    # Prune expired
-ZCARD ...               # Count in window
-```
-
-### 2. Idempotency / De-duplication
-Kafka guarantees **at-least-once** delivery. We prevent double-scoring with Redis SET NX:
-
-```python
-# Atomic: set key only if it doesn't exist
-await redis.set(f"dedup:{tx_id}", "1", ex=300, nx=True)
-# Returns None if key existed → duplicate → skip
-```
-
-### 3. Circuit Breaker (Graceful Degradation)
-If Kafka becomes unreachable, the API fails fast instead of hanging:
-
-```
-CLOSED → normal operation
-  ↓ (5 consecutive failures)
-OPEN   → reject calls immediately (30s)
-  ↓ (timeout expires)
-HALF_OPEN → allow one test call
-  ↓ (success)
-CLOSED again
-```
-
-### 4. Real-Time WebSocket Alerts
-High-risk decisions (score > 80) are broadcast to connected dashboard clients via FastAPI WebSockets — zero polling needed.
+| Layer            | Technology           |
+| ---------------- | -------------------- |
+| API              | FastAPI              |
+| Messaging        | Apache Kafka         |
+| Cache            | Redis                |
+| Database         | PostgreSQL           |
+| ML               | XGBoost              |
+| Monitoring       | Prometheus + Grafana |
+| Testing          | pytest               |
+| CI/CD            | GitHub Actions       |
+| Containerization | Docker Compose       |
 
 ---
 
-## 🚀 Quick Start
+# Project Structure
 
-### Prerequisites
-- Docker & Docker Compose
-- Python 3.12+ (for local dev)
+```text
+fraud-detection-system/
+│
+├── api-gateway/
+├── fraud-detector/
+├── alert-service/
+├── analytics-service/
+├── monitoring/
+├── scripts/
+├── tests/
+├── .github/workflows/
+└── docker-compose.yml
+```
 
-### Run the full stack
+---
+
+# Getting Started
+
+Clone the repository.
 
 ```bash
 git clone https://github.com/parthsuthar001/fraud-detection-system.git
-cd fraud-detection-system
 
+cd fraud-detection-system
+```
+
+Start every service.
+
+```bash
 docker-compose up --build
 ```
 
-That's it. All 7 services start with correct dependency ordering.
+---
 
-### Verify it's working
+# Available Services
+
+| Service    | URL                        |
+| ---------- | -------------------------- |
+| API        | http://localhost:8000      |
+| Swagger    | http://localhost:8000/docs |
+| Grafana    | http://localhost:3000      |
+| Prometheus | http://localhost:9091      |
+
+Grafana credentials
+
+```
+Username: admin
+
+Password: fraud123
+```
+
+---
+
+# Example Request
 
 ```bash
-# Submit a test transaction
 curl -X POST http://localhost:8000/api/v1/transactions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": 1001,
-    "amount": 55000,
-    "merchant": "Crypto Exchange",
-    "merchant_category": "crypto",
-    "country": "Russia",
-    "card_last4": "4242"
-  }'
-
-# Expected: 202 Accepted with transaction_id
-# Fraud detector will score this ~95/100 → BLOCK
+-H "Content-Type: application/json" \
+-d '{
+  "user_id":1001,
+  "amount":55000,
+  "merchant":"Crypto Exchange",
+  "merchant_category":"crypto",
+  "country":"Russia",
+  "card_last4":"4242"
+}'
 ```
 
-### Generate a transaction stream
+The API immediately returns
 
-```bash
-pip install httpx
-python scripts/generate_transactions.py --rate 10 --scenario mixed
 ```
+202 Accepted
+```
+
+The fraud detector processes the transaction asynchronously and publishes the result after scoring.
 
 ---
 
-## 🔍 Fraud Rules Engine
+# Fraud Rules
 
-| Rule | Trigger | Score Delta |
-|------|---------|------------|
-| Large Transaction | amount > $50,000 | +40 |
-| Large Transaction | amount > $10,000 | +20 |
-| High-Risk Country | Russia, Iran, North Korea… | +30 |
-| New Country | Country not in user history | +20 |
-| Velocity (high) | 5+ transactions in 60s | +35 |
-| Velocity (medium) | 3+ transactions in 60s | +15 |
-| Velocity (10min) | 10+ transactions in 10min | +25 |
-| Impossible Travel | Different country < 20 min | +40 |
-| Night Activity | 1 AM – 5 AM UTC | +10 |
-| New Account | Account < 7 days + amount > $1,000 | +20 |
-| High-Risk Merchant | crypto, gambling, wire_transfer… | +15 |
+| Rule               |     Score |
+| ------------------ | --------: |
+| Amount > $50,000   |       +40 |
+| Amount > $10,000   |       +20 |
+| High-risk Country  |       +30 |
+| New Country        |       +20 |
+| Velocity (60 s)    | +15 / +35 |
+| Velocity (10 min)  |       +25 |
+| Impossible Travel  |       +40 |
+| Night Activity     |       +10 |
+| New Account        |       +20 |
+| High-risk Merchant |       +15 |
 
-**Score → Decision mapping:**
+Risk Levels
 
-| Score | Risk Level | Action |
-|-------|-----------|--------|
-| 0–30  | LOW       | APPROVE |
-| 31–60 | MEDIUM    | REVIEW |
-| 61–80 | HIGH      | BLOCK |
-| 81–100| CRITICAL  | BLOCK |
+|  Score | Decision |
+| -----: | -------- |
+|   0–30 | APPROVE  |
+|  31–60 | REVIEW   |
+| 61–100 | BLOCK    |
 
 ---
 
-## 📊 API Reference
+# Machine Learning
 
-### POST `/api/v1/transactions`
-Submit a transaction for fraud scoring.
+The detector supports hybrid scoring.
 
-**Request:**
-```json
-{
-  "user_id": 1001,
-  "amount": 15000.00,
-  "currency": "USD",
-  "merchant": "Electronics Store",
-  "merchant_category": "electronics",
-  "country": "Russia",
-  "ip_address": "185.220.101.1",
-  "card_last4": "4242"
-}
+```
+Rule Engine
+      │
+      ├────► Final Score
+      │
+XGBoost Model
 ```
 
-**Response (202 Accepted):**
-```json
-{
-  "transaction_id": "3f4a1b2c-...",
-  "status": "ACCEPTED",
-  "message": "Transaction received and queued for processing",
-  "queued_at": "2024-01-15T10:30:00Z"
-}
-```
+Fourteen engineered features are extracted from each transaction, including
 
-### GET `/api/v1/health`
-Service health check.
+* amount
+* transaction velocity
+* geographic history
+* merchant category
+* account age
+* time-based features
+* rule engine score
 
-### WebSocket `/ws/alerts`
-Connect to receive real-time fraud alerts:
-```javascript
-const ws = new WebSocket("ws://localhost:8000/ws/alerts");
-ws.onmessage = (event) => console.log(JSON.parse(event.data));
-```
+If no trained model is available, the detector automatically falls back to rule-based scoring.
 
 ---
 
-## 🧪 Running Tests
+# Running Tests
 
 ```bash
 cd fraud-detector
-pip install -r requirements.txt pytest pytest-asyncio
 
 pytest tests/ -v --cov=app
 ```
 
-**Test coverage includes:**
-- Large transaction thresholds
-- High-risk country detection
-- Velocity window edge cases
-- Impossible travel calculation
-- Full pipeline scoring
+GitHub Actions automatically runs
 
-### Load Testing
+* Ruff linting
+* Unit tests
+* Coverage
+
+on every push and pull request.
+
+---
+
+# Load Testing
 
 ```bash
-pip install locust
-locust -f tests/load_test.py --host=http://localhost:8000 --users 100 --spawn-rate 10
+locust -f tests/load_test.py \
+--host=http://localhost:8000 \
+--users 100 \
+--spawn-rate 10
 ```
 
 ---
 
-## 🗂️ Project Structure
+# Design Highlights
 
-```
-fraud-detection-system/
-├── .github/workflows/         # CI/CD — lint + tests on every push
-│   └── ci.yml
-│
-├── api-gateway/               # FastAPI transaction ingestion
-│   ├── app/
-│   │   ├── main.py            # App entrypoint + WebSocket
-│   │   ├── routes/            # HTTP route handlers
-│   │   ├── schemas/           # Pydantic request/response models
-│   │   └── core/              # Kafka producer, circuit breaker, config
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── fraud-detector/            # Kafka consumer + rule engine
-│   ├── app/
-│   │   ├── consumers/         # Kafka consumer worker
-│   │   ├── rules/             # Engine + Redis velocity tracker
-│   │   └── db/                # PostgreSQL repository
-│   ├── tests/
-│   │   └── test_rules_engine.py
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── alert-service/             # Fraud event consumer + notifications
-├── analytics-service/         # Dashboard API (fraud stats)
-│
-├── scripts/
-│   └── generate_transactions.py   # Demo transaction generator
-│
-├── tests/
-│   └── load_test.py           # Locust load test
-│
-├── docker-compose.yml         # Full stack orchestration
-└── README.md
-```
+## Redis Sliding Window
+
+Tracks transaction velocity using Redis Sorted Sets for efficient rolling-window calculations.
+
+## Kafka Consumer Groups
+
+Multiple fraud detector workers process transactions in parallel while preserving message ordering within partitions.
+
+## Idempotency
+
+Duplicate Kafka messages are ignored using Redis `SET NX`.
+
+## Circuit Breaker
+
+The API Gateway stops publishing when Kafka becomes unavailable and resumes automatically after recovery.
+
+## Manual Offset Commits
+
+Kafka offsets are committed only after successful processing to avoid message loss.
 
 ---
 
-## 🏭 Production Considerations
+# Monitoring
 
-| Concern | Solution |
-|---------|---------|
-| Duplicate processing | Redis SET NX idempotency key |
-| Kafka consumer failure | Manual offset commit after success |
-| Redis outage | Circuit breaker → fallback to basic rules |
-| DB slowness | Async asyncpg pool, non-blocking writes |
-| Scale fraud workers | `deploy.replicas: 2` in docker-compose (same consumer group → Kafka distributes partitions) |
+The project exposes Prometheus metrics and includes a pre-configured Grafana dashboard displaying
 
----
-
-## 📈 Benchmarks
-
-Tested on a MacBook Pro M2, local Docker:
-
-| Metric | Result |
-|--------|--------|
-| P50 latency (API → 202) | ~8ms |
-| P95 latency (API → 202) | ~22ms |
-| Rule engine evaluation | ~0.3ms |
-| Redis velocity check | ~1.2ms |
-| End-to-end (API → DB write) | ~45ms |
-| Max throughput | ~1,200 TPS |
+* transaction throughput
+* fraud decisions
+* latency
+* rule activity
+* ML scoring
+* processing metrics
 
 ---
 
-## 🛠️ Tech Stack
+# Future Improvements
 
-| Layer | Technology |
-|-------|-----------|
-| API Gateway | FastAPI 0.111, Uvicorn |
-| Message Broker | Apache Kafka (Confluent 7.5) |
-| Cache / State | Redis 7.2 (Sorted Sets) |
-| Database | PostgreSQL 16 (asyncpg) |
-| Containerization | Docker Compose |
-| CI/CD | GitHub Actions |
-| Load Testing | Locust |
-| Testing | pytest, pytest-asyncio |
-
-
-
-## 🤖 ML Scoring Layer (XGBoost)
-
-### Train the model
-```bash
-cd fraud-detector
-pip install -r requirements.txt
-python -m app.ml.trainer
-```
-
-Output: `models/fraud_model.json` (~50 KB, XGBoost native format)
-
-### How it works
-
-The system uses a **hybrid scoring** approach:
-
-```
-Rule Engine Score  ──┐
-                     ├─► Blended Score = 0.65 × ML + 0.35 × Rules
-XGBoost ML Score  ──┘
-```
-
-**14 features fed to XGBoost:**
-
-| Feature | Description |
-|---------|-------------|
-| `amount`, `amount_log` | Raw and log-scaled amount |
-| `is_large_tx` | Flag for amount > $10,000 |
-| `tx_count_60s`, `tx_count_10min` | Velocity from Redis sliding windows |
-| `is_high_risk_country` | Country in HIGH_RISK set |
-| `is_new_country` | Country not in user's history |
-| `impossible_travel` | Different country within 20 min |
-| `hour_of_day`, `is_night` | Time-based features |
-| `is_high_risk_merchant` | Merchant category risk |
-| `account_age_days`, `is_new_account` | Account tenure |
-| `rule_score` | Rules engine output as a feature |
-
-**Graceful degradation**: if the model file doesn't exist at startup, the service automatically falls back to rules-only scoring — no crashes.
+* Online model retraining
+* Kubernetes deployment
+* OpenTelemetry tracing
+* Feature store
+* Authentication and authorization
+* Multi-region Kafka clusters
 
 ---
 
-## 📊 Grafana Dashboard
+# License
 
-After `docker-compose up`, open **http://localhost:3000**
-
-- Username: `admin`
-- Password: `fraud123`
-
-The **Fraud Detection — Live Dashboard** auto-loads with:
-
-| Panel | Metric |
-|-------|--------|
-| Transactions/sec | `rate(fraud_transactions_total[1m])` |
-| Block rate % | Blocked / Total ratio |
-| P95 latency | 95th percentile processing time |
-| ML scoring active % | % of transactions scored by XGBoost |
-| Decision timeline | APPROVE / BLOCK / REVIEW over time |
-| Risk score histogram | Distribution of 0–100 scores |
-| Top triggered rules | Which rules fire most often |
-| ML probability distribution | Raw XGBoost output over time |
-| Latency percentiles | P50 / P95 / P99 |
-
-Prometheus scrapes metrics every **5 seconds**.
-Data is retained for **15 days** by default.
-
----
-
-## 🏃 Full Stack Startup Order
-
-```bash
-docker-compose up --build
-```
-
-Services start in this order (health-checked):
-1. Zookeeper → Kafka → Redis → PostgreSQL
-2. API Gateway, Fraud Detector ×2, Alert Service, Analytics Service
-3. Prometheus, Grafana, Redis Exporter, Postgres Exporter
-
-**Access points after startup:**
-
-| Service | URL |
-|---------|-----|
-| API Gateway | http://localhost:8000 |
-| API Docs (Swagger) | http://localhost:8000/docs |
-| Grafana Dashboard | http://localhost:3000 |
-| Prometheus | http://localhost:9091 |
-| Fraud metrics | http://localhost:9090/metrics |
-
+MIT
