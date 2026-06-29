@@ -1,6 +1,6 @@
 # 🛡️ Real-Time Fraud Detection System
 
-![CI](https://github.com/parthsuthar001/fraud-detection-system/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/parthsuthar001/fraud-detection-system/actions)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green)
 ![Kafka](https://img.shields.io/badge/Kafka-7.5-black)
